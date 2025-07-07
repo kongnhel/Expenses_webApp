@@ -18,21 +18,31 @@ class _MainScreenState extends State<MainScreen> {
   List<ExpenseModel> _expenses = [];
   bool _isLoading = true;
   String? _error;
-  Widget _selectedScreen = const Center(child: CircularProgressIndicator());
+
+  Widget _selectedScreen = DashboardPage(expenses: []);
 
   @override
   void initState() {
     super.initState();
-    _loadExpensesFromApi();
+    _loadExpensesForDashboard();
   }
 
-  Future<void> _loadExpensesFromApi() async {
+  Future<List<ExpenseModel>> fetchExpensesOnly() async {
+    return await getExpenses();
+  }
+
+  Future<void> _loadExpensesForDashboard() async {
+    setState(() {
+      _isLoading = true;
+      _selectedScreen = const Center(child: CircularProgressIndicator());
+    });
+
     try {
-      final data = await getExpenses();
+      final data = await fetchExpensesOnly();
       setState(() {
         _expenses = data;
         _isLoading = false;
-        _selectedScreen = _buildExpenseList();
+        _selectedScreen = DashboardPage(expenses: _expenses);
       });
     } catch (e) {
       setState(() {
@@ -47,7 +57,7 @@ class _MainScreenState extends State<MainScreen> {
     return ExpenseList(
       expenses: _expenses,
       onEdit: (expense) {
-        // TODO: Implement editing if needed
+        // your edit logic
       },
       onDelete: (expense) {
         setState(() {
@@ -55,12 +65,14 @@ class _MainScreenState extends State<MainScreen> {
           _selectedScreen = _buildExpenseList();
         });
       },
+      onDeleteAll: () {
+        _removeAllExpenses();
+      },
     );
   }
 
   Future<void> _removeAllExpenses() async {
-    final originalExpenses = [..._expenses]; // backup before delete
-
+    final originalExpenses = [..._expenses];
     setState(() {
       _expenses.clear();
       _selectedScreen = _buildExpenseList();
@@ -77,11 +89,11 @@ class _MainScreenState extends State<MainScreen> {
             action: SnackBarAction(
               label: 'Undo',
               onPressed: () {
+                isUndo = true;
                 setState(() {
                   _expenses = originalExpenses;
                   _selectedScreen = _buildExpenseList();
                 });
-                isUndo = true;
               },
             ),
           ),
@@ -103,33 +115,42 @@ class _MainScreenState extends State<MainScreen> {
   void screenSelector(String route) {
     switch (route) {
       case DashboardPage.id:
-        setState(() {
-          _selectedScreen = DashboardPage();
-        });
+        _loadExpensesForDashboard();
         break;
+
       case ExpenseList.id:
         setState(() {
-          _selectedScreen = _buildExpenseList();
+          _selectedScreen = const Center(child: CircularProgressIndicator());
         });
+        fetchExpensesOnly()
+            .then((data) {
+              setState(() {
+                _expenses = data;
+                _selectedScreen = _buildExpenseList();
+              });
+            })
+            .catchError((e) {
+              setState(() {
+                _selectedScreen = Center(
+                  child: Text('Error loading expenses: $e'),
+                );
+              });
+            });
         break;
+
       case FormAddData.id:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => FormAddData()),
         ).then((result) {
           if (result == true) {
-            _loadExpensesFromApi(); // ✅ Refresh expense list
-            setState(() {
-              _selectedScreen = _buildExpenseList(); // ✅ Show list again
-            });
+            _loadExpensesForDashboard();
           }
         });
         break;
 
       default:
-        setState(() {
-          _selectedScreen = DashboardPage();
-        });
+        _loadExpensesForDashboard();
     }
   }
 
@@ -142,19 +163,9 @@ class _MainScreenState extends State<MainScreen> {
           'Expense Management',
           style: TextStyle(color: Colors.white),
         ),
-        actions: [
-          IconButton(
-            icon: Image.asset("assets/images/trash.png", width: 25, height: 25),
-            onPressed: () {
-              if (_expenses.isNotEmpty) {
-                _removeAllExpenses();
-              }
-            },
-          ),
-        ],
       ),
       sideBar: SideBar(
-        selectedRoute: ExpenseList.id,
+        selectedRoute: DashboardPage.id,
         onSelected: (item) => screenSelector(item.route ?? ''),
         items: const [
           AdminMenuItem(
@@ -174,7 +185,10 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      body: _selectedScreen,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _selectedScreen,
+      ),
     );
   }
 }

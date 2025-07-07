@@ -8,12 +8,14 @@ class ExpenseList extends StatefulWidget {
   final List<ExpenseModel> expenses;
   final void Function(ExpenseModel) onEdit;
   final void Function(ExpenseModel)? onDelete;
+  final VoidCallback? onDeleteAll;
 
   const ExpenseList({
     super.key,
     required this.expenses,
     required this.onEdit,
     this.onDelete,
+    this.onDeleteAll,
   });
 
   @override
@@ -38,7 +40,6 @@ class _ExpenseListState extends State<ExpenseList> {
       return;
     }
 
-    // Save pending delete
     _pendingDelete = expense;
     _isDeleting = true;
 
@@ -65,7 +66,7 @@ class _ExpenseListState extends State<ExpenseList> {
             try {
               await deleteExpense(id);
               if (widget.onDelete != null) {
-                widget.onDelete!(_pendingDelete!); // tell parent to update
+                widget.onDelete!(_pendingDelete!);
               }
             } catch (e) {
               scaffoldMessenger.showSnackBar(
@@ -89,65 +90,110 @@ class _ExpenseListState extends State<ExpenseList> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(10),
-      itemCount: widget.expenses.length,
-      itemBuilder: (context, index) {
-        final expense = widget.expenses[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 4,
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.delete_forever),
+            label: const Text('Delete All Expenses'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 239, 42, 42),
             ),
-            title: Text(
-              expense.categories,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Color.fromARGB(255, 49, 65, 215),
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 6),
-                Text(
-                  'Amount: \$${double.tryParse(expense.amount)?.toStringAsFixed(2) ?? '0.00'}',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                Text(
-                  'Date: ${expense.date}',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                if (expense.note != null && expense.note!.isNotEmpty)
-                  Text(
-                    'Note: ${expense.note}',
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Confirm Delete All'),
+                  content: const Text(
+                    'Are you sure you want to delete all expenses?',
                   ),
-              ],
-            ),
-            trailing: Wrap(
-              spacing: 8,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.green),
-                  onPressed: () => widget.onEdit(expense),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Delete'),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _confirmDelete(context, expense),
-                ),
-              ],
-            ),
+              );
+              if (confirm == true) {
+                if (widget.onDeleteAll != null) {
+                  widget.onDeleteAll!();
+                }
+              }
+            },
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(10),
+            itemCount: widget.expenses.length,
+            itemBuilder: (context, index) {
+              final expense = widget.expenses[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  title: Text(
+                    expense.categories,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Color.fromARGB(255, 49, 65, 215),
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 6),
+                      Text(
+                        'Amount: \$${double.tryParse(expense.amount)?.toStringAsFixed(2) ?? '0.00'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      Text(
+                        'Date: ${expense.date}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      if (expense.note != null && expense.note!.isNotEmpty)
+                        Text(
+                          'Note: ${expense.note}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                    ],
+                  ),
+                  trailing: Wrap(
+                    spacing: 8,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.green),
+                        onPressed: () => widget.onEdit(expense),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _confirmDelete(context, expense),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -37,6 +37,7 @@ dependencies:
   flutter_admin_scaffold: ^1.4.0
   http: ^1.4.0
   intl: ^0.20.2
+  fl_chart: ^1.0.0
 
 
 dev_dependencies:
@@ -60,8 +61,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-  web:
-    renderer: html
+  # web:
+  #   renderer: html
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
