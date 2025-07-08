@@ -43,8 +43,8 @@ class DashboardPage extends StatelessWidget {
     return map;
   }
 
-  List<PieChartSectionData> buildPieSections(Map<String, double> data) {
-    final List<Color> colors = [
+  List<Color> getChartColors() {
+    return [
       Colors.blue,
       Colors.red,
       Colors.green,
@@ -53,6 +53,10 @@ class DashboardPage extends StatelessWidget {
       Colors.brown,
       Colors.cyan,
     ];
+  }
+
+  List<PieChartSectionData> buildPieSections(Map<String, double> data) {
+    final colors = getChartColors();
     int i = 0;
     final total = data.values.fold(0.0, (a, b) => a + b);
     return data.entries.map((entry) {
@@ -63,10 +67,10 @@ class DashboardPage extends StatelessWidget {
       return PieChartSectionData(
         color: color,
         value: value,
-        title: '${percent.toStringAsFixed(1)}%',
+        title: '${entry.key}\n${percent.toStringAsFixed(1)}%',
         radius: 50,
         titleStyle: const TextStyle(
-          fontSize: 14,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
@@ -95,13 +99,38 @@ class DashboardPage extends StatelessWidget {
     }).toList();
   }
 
+  Widget buildLegend(Map<String, double> data, List<Color> colors) {
+    final total = data.values.fold(0.0, (a, b) => a + b);
+    final entries = data.entries.toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(entries.length, (i) {
+        final category = entries[i].key;
+        final value = entries[i].value;
+        final percent = total == 0 ? 0 : (value / total) * 100;
+        final color = colors[i % colors.length];
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              Container(width: 12, height: 12, color: color),
+              const SizedBox(width: 8),
+              Text('$category - ${percent.toStringAsFixed(1)}%'),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalExpenses = getTotalExpenses();
     final expensesByDate = groupByDate();
     final expensesByCategory = groupByCategory();
-
     final barGroups = buildBarGroups(expensesByDate);
+    final chartColors = getChartColors();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -128,7 +157,7 @@ class DashboardPage extends StatelessWidget {
           const SizedBox(height: 10),
 
           SizedBox(
-            height: 200,
+            height: 250,
             child: PieChart(
               PieChartData(
                 sections: buildPieSections(expensesByCategory),
@@ -137,6 +166,10 @@ class DashboardPage extends StatelessWidget {
               ),
             ),
           ),
+
+          const SizedBox(height: 20),
+
+          buildLegend(expensesByCategory, chartColors),
 
           const SizedBox(height: 30),
 
